@@ -1,0 +1,47 @@
+Instructions for exporting ongoing orders on FlowOne 20.11 MP2
+==============================================================
+* Scale OM pods down to 0
+* Copy updated migrate_export.ksh and parameters.txt to nei-installer pod (your pod may have different name). For example:
+kubectl -n <namespace> cp migrate_export.ksh nei-installer-0:/tmp/migrate_export.ksh
+kubectl -n <namespace> cp parameters.txt nei-installer-0:/tmp/parameters.txt
+* Log in to nei-installer pod. Following needs to be done in nei-installer pod
+* Create directory for parameters.txt
+mkdir /nokia/meta/INSTANTLINK
+* Copy parameters.txt there
+cp /tmp/parameters.txt /nokia/meta/INSTANTLINK/
+* Move the old export script and add the new one in place
+cd /nokia/sas/bin
+mv migrate_export.ksh migrate_export.ksh.orig
+cp /tmp/migrate_export.ksh .
+chmod u+x migrate_export.ksh
+* Set env variable and run the script
+export MY_HOST_NAME=default
+./migrate_export.ksh --req
+* The result should be a file named like migrate_req_default_<timestamp>.tar.gz. Copy that out of the pod.
+ 
+Instructions for importing orders to FlowOne 20.11 SP5
+==============================================================
+* Scale OM pods down to 0
+* Copy updated migrate_import.ksh, parameters.txt and export file to nei-installer pod (your pod may have different name). For example:
+kubectl -n <namespace> cp migrate_import.ksh nei-installer-0:/tmp/migrate_import.ksh
+kubectl -n <namespace> cp parameters.txt nei-installer-0:/tmp/parameters.txt
+kubectl -n <namespace> cp migrate_req_default_<timestamp>.tar.gz nei-installer-0:/tmp/migrate_req_default_<timestamp>.tar.gz
+* Log in to nei-installer pod. Following needs to be done in nei-installer pod
+* Create directory for parameters.txt
+mkdir /nokia/meta/INSTANTLINK
+* Copy parameters.txt there
+cp /tmp/parameters.txt /nokia/meta/INSTANTLINK/
+* Move the old import script and add the new one in place
+cd /nokia/sas/bin
+mv migrate_import.ksh migrate_import.ksh.orig
+cp /tmp/migrate_import.ksh .
+chmod u+x migrate_import.ksh
+* Run the script
+ ./migrate_import.ksh --req /tmp/migrate_req_default_<timestamp>.tar.gz 
+* After the import is fully completed, BEFORE scaling up IL. Add a new setting into OM configmap "om-configurable-files"
+** Locate the mentioned configmap on kubernetes dashboard.
+** The configmap should contain block ".customer.environment-variables"
+** Add this to the end of mentioned block among the other JAVA_OPTS:
+JAVA_OPTS="$JAVA_OPTS -Ddb_loader_threads=1"
+* Scale up OM pods to 1
+
